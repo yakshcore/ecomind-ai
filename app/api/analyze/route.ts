@@ -5,33 +5,66 @@ import { GLOBAL_AVERAGES, getEquivalences } from "@/lib/carbon-calculator";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+function isValidBreakdown(b: unknown): b is CarbonBreakdown {
+  if (!b || typeof b !== "object") return false;
+  const bd = b as Record<string, unknown>;
+  return (
+    typeof bd.total === "number" &&
+    typeof bd.transport === "number" &&
+    typeof bd.energy === "number" &&
+    typeof bd.food === "number" &&
+    typeof bd.shopping === "number" &&
+    bd.total > 0 &&
+    bd.total < 1000
+  );
+}
+
+function isValidProfile(p: unknown): p is UserProfile {
+  if (!p || typeof p !== "object") return false;
+  const pr = p as Record<string, unknown>;
+  return (
+    typeof pr.name === "string" &&
+    pr.name.length > 0 &&
+    pr.name.length <= 100 &&
+    typeof pr.location === "string"
+  );
+}
+
 export async function POST(req: NextRequest) {
-  const {
-    profile,
-    breakdown,
-  }: { profile: UserProfile; breakdown: CarbonBreakdown } = await req.json();
+  try {
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "AI service not configured" }, { status: 503 });
+    }
 
-  const eq = getEquivalences(breakdown.total);
-  const percentVsUSA = (
-    ((breakdown.total - GLOBAL_AVERAGES.usa) / GLOBAL_AVERAGES.usa) *
-    100
-  ).toFixed(1);
-  const percentVsWorld = (
-    ((breakdown.total - GLOBAL_AVERAGES.world) / GLOBAL_AVERAGES.world) *
-    100
-  ).toFixed(1);
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
-  const systemPrompt = `You are EcoMind, an expert carbon footprint analyst and sustainability coach.
+    const { profile, breakdown } = body;
+    if (!isValidProfile(profile) || !isValidBreakdown(breakdown)) {
+      return NextResponse.json({ error: "Invalid profile or breakdown data" }, { status: 400 });
+    }
+
+    const eq = getEquivalences(breakdown.total);
+    const percentVsUSA = (
+      ((breakdown.total - GLOBAL_AVERAGES.usa) / GLOBAL_AVERAGES.usa) * 100
+    ).toFixed(1);
+    const percentVsWorld = (
+      ((breakdown.total - GLOBAL_AVERAGES.world) / GLOBAL_AVERAGES.world) * 100
+    ).toFixed(1);
+
+    const systemPrompt = `You are EcoMind, an expert carbon footprint analyst and sustainability coach.
 You combine deep knowledge of climate science, behavioral psychology, and sustainable living.
 Your analysis is data-driven, specific, actionable, and encouraging — never preachy or guilt-inducing.
 You speak directly to the individual, referencing their specific data points.
 Always format your response in clean markdown with clear sections.`;
 
-  const userPrompt = `Analyze this person's carbon footprint and provide a deeply personalized report.
+    const userPrompt = `Analyze this person's carbon footprint and provide a deeply personalized report.
 
 **User Profile:**
-- Name: ${profile.name}
-- Location: ${profile.location}
+- Name: ${profile.name.slice(0, 50)}
+- Location: ${String(profile.location).slice(0, 100)}
 
 **Annual Carbon Footprint Breakdown:**
 - Total: ${breakdown.total} tonnes CO2e
@@ -53,7 +86,7 @@ Always format your response in clean markdown with clear sections.`;
 - Shopping: ${profile.shopping.shoppingFrequency} frequency, recycling: ${profile.shopping.recyclingHabits}
 
 Provide a comprehensive analysis with:
-1. **Your Carbon Story** — a 2-3 sentence personalized narrative about ${profile.name}'s unique footprint pattern
+1. **Your Carbon Story** — a 2-3 sentence personalized narrative about ${profile.name.slice(0, 50)}'s unique footprint pattern
 2. **Key Wins** — 2-3 things they're already doing right (be specific to their data)
 3. **Biggest Opportunities** — their top 3 reduction opportunities with estimated annual savings in tonnes
 4. **Quick Wins This Week** — 3 actions they can start immediately (low-effort, moderate impact)
@@ -62,16 +95,20 @@ Provide a comprehensive analysis with:
 
 Keep the tone warm, specific, and energizing. Use the person's name naturally. Reference their actual numbers.`;
 
-  const response = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    max_tokens: 1500,
-    temperature: 0.7,
-  });
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 1500,
+      temperature: 0.7,
+    });
 
-  const text = response.choices[0]?.message?.content ?? "";
-  return NextResponse.json({ analysis: text });
+    const text = response.choices[0]?.message?.content ?? "";
+    return NextResponse.json({ analysis: text });
+  } catch (err) {
+    console.error("Analysis error:", err);
+    return NextResponse.json({ error: "Failed to generate analysis" }, { status: 500 });
+  }
 }
