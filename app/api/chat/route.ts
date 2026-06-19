@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatMessage, UserProfile, CarbonBreakdown } from '@/lib/types';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
   const {
@@ -28,13 +28,16 @@ Never be preachy. Be encouraging and solution-focused.`;
     content: m.content,
   }));
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+  const response = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...apiMessages.slice(-10),
+    ],
     max_tokens: 600,
-    system: systemPrompt,
-    messages: apiMessages,
+    temperature: 0.7,
   });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  const text = response.choices[0]?.message?.content ?? '';
   return NextResponse.json({ reply: text });
 }

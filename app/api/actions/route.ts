@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserProfile, CarbonBreakdown, Action } from '@/lib/types';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
   const { profile, breakdown }: { profile: UserProfile; breakdown: CarbonBreakdown } = await req.json();
@@ -25,18 +25,19 @@ Return ONLY a valid JSON array of exactly 12 actions. Each action must have:
 - difficulty: "easy", "medium", or "hard"
 
 Prioritize actions that address the user's highest-emission categories first.
-Make the descriptions specific to their profile (e.g., mention their actual car type, diet, etc.).
-Include a mix of difficulties: at least 5 easy, 4 medium, 3 hard.
+Make the descriptions specific to their profile (mention their actual car type, diet, kWh usage, etc.).
+Include a mix: at least 5 easy, 4 medium, 3 hard.
 
-Return ONLY the JSON array, no other text.`;
+Return ONLY the JSON array with no markdown fences, no explanation, no other text.`;
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
+  const response = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
+    max_tokens: 2000,
+    temperature: 0.4,
   });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '[]';
+  const text = response.choices[0]?.message?.content ?? '[]';
 
   let actions: Omit<Action, 'completed' | 'committed'>[] = [];
   try {

@@ -1,16 +1,25 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { NextRequest, NextResponse } from 'next/server';
-import type { UserProfile, CarbonBreakdown } from '@/lib/types';
-import { GLOBAL_AVERAGES, getEquivalences } from '@/lib/carbon-calculator';
+import Groq from "groq-sdk";
+import { NextRequest, NextResponse } from "next/server";
+import type { UserProfile, CarbonBreakdown } from "@/lib/types";
+import { GLOBAL_AVERAGES, getEquivalences } from "@/lib/carbon-calculator";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
-  const { profile, breakdown }: { profile: UserProfile; breakdown: CarbonBreakdown } = await req.json();
+  const {
+    profile,
+    breakdown,
+  }: { profile: UserProfile; breakdown: CarbonBreakdown } = await req.json();
 
   const eq = getEquivalences(breakdown.total);
-  const percentVsUSA = (((breakdown.total - GLOBAL_AVERAGES.usa) / GLOBAL_AVERAGES.usa) * 100).toFixed(1);
-  const percentVsWorld = (((breakdown.total - GLOBAL_AVERAGES.world) / GLOBAL_AVERAGES.world) * 100).toFixed(1);
+  const percentVsUSA = (
+    ((breakdown.total - GLOBAL_AVERAGES.usa) / GLOBAL_AVERAGES.usa) *
+    100
+  ).toFixed(1);
+  const percentVsWorld = (
+    ((breakdown.total - GLOBAL_AVERAGES.world) / GLOBAL_AVERAGES.world) *
+    100
+  ).toFixed(1);
 
   const systemPrompt = `You are EcoMind, an expert carbon footprint analyst and sustainability coach.
 You combine deep knowledge of climate science, behavioral psychology, and sustainable living.
@@ -38,7 +47,7 @@ Always format your response in clean markdown with clear sections.`;
 - Equivalent to driving ${eq.milesDriven.toLocaleString()} miles in a gas car
 
 **Lifestyle Details:**
-- Transport: ${profile.transport.carType} car, ${profile.transport.carMilesPerWeek} miles/week, ${profile.transport.flightsPerYear} flights/year
+- Transport: ${profile.transport.carType} car, ${profile.transport.carMilesPerWeek} miles/week, flights: ${profile.transport.flightType}
 - Diet: ${profile.food.diet} (${profile.food.beefServingsPerWeek} beef servings/week)
 - Energy: ${profile.energy.electricityKwhPerMonth} kWh/month electricity, renewable: ${profile.energy.renewableEnergy}
 - Shopping: ${profile.shopping.shoppingFrequency} frequency, recycling: ${profile.shopping.recyclingHabits}
@@ -53,13 +62,16 @@ Provide a comprehensive analysis with:
 
 Keep the tone warm, specific, and energizing. Use the person's name naturally. Reference their actual numbers.`;
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+  const response = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
     max_tokens: 1500,
-    messages: [{ role: 'user', content: userPrompt }],
-    system: systemPrompt,
+    temperature: 0.7,
   });
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+  const text = response.choices[0]?.message?.content ?? "";
   return NextResponse.json({ analysis: text });
 }
