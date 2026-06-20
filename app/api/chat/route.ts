@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { ChatMessage, UserProfile, CarbonBreakdown } from "@/lib/types";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+function getGroq() { return new Groq({ apiKey: process.env.GROQ_API_KEY }); }
 
 const ALLOWED_ROLES = new Set(["user", "assistant"]);
 
@@ -55,7 +55,7 @@ Keep responses concise (2-4 paragraphs max), practical, and specific to the user
 If you cite a statistic, make it relevant. Use markdown for readability.
 Never be preachy. Be encouraging and solution-focused.`;
 
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "system", content: systemPrompt }, ...sanitized],
       max_tokens: 600,

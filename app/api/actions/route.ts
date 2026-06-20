@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { UserProfile, CarbonBreakdown, Action } from "@/lib/types";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+function getGroq() { return new Groq({ apiKey: process.env.GROQ_API_KEY }); }
 
 function isValidBreakdown(b: unknown): b is CarbonBreakdown {
   if (!b || typeof b !== "object") return false;
@@ -59,7 +59,7 @@ Include a mix: at least 5 easy, 4 medium, 3 hard.
 
 Return ONLY the JSON array with no markdown fences, no explanation, no other text.`;
 
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,

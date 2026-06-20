@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { UserProfile, CarbonBreakdown } from "@/lib/types";
 import { GLOBAL_AVERAGES, getEquivalences } from "@/lib/carbon-calculator";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+function getGroq() { return new Groq({ apiKey: process.env.GROQ_API_KEY }); }
 
 function isValidBreakdown(b: unknown): b is CarbonBreakdown {
   if (!b || typeof b !== "object") return false;
@@ -95,7 +95,7 @@ Provide a comprehensive analysis with:
 
 Keep the tone warm, specific, and energizing. Use the person's name naturally. Reference their actual numbers.`;
 
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: systemPrompt },
