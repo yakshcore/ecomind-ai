@@ -106,7 +106,9 @@ Keep the tone warm, specific, and energizing. Use the person's name naturally. R
     });
 
     const text = response.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ analysis: text });
+    return NextResponse.json({ analysis: text }, {
+      headers: { 'Cache-Control': 'no-store' },
+    });
   } catch (err) {
     console.error("Analysis error:", err);
     return NextResponse.json({ error: "Failed to generate analysis" }, { status: 500 });

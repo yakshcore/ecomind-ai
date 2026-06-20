@@ -185,7 +185,9 @@ export default function ActionsPage() {
                       <div className="flex gap-2 ml-auto">
                         <button
                           onClick={() => handleToggle(action.id, 'committed')}
-                          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          aria-pressed={action.committed}
+                          aria-label={`${action.committed ? 'Remove commitment to' : 'Commit to'}: ${action.title}`}
+                          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500',
                             action.committed
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : 'glass text-slate-400 hover:text-slate-200')}
@@ -194,7 +196,9 @@ export default function ActionsPage() {
                         </button>
                         <button
                           onClick={() => handleToggle(action.id, 'completed')}
-                          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          aria-pressed={action.completed}
+                          aria-label={`Mark as ${action.completed ? 'not done' : 'done'}: ${action.title}`}
+                          className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500',
                             action.completed
                               ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                               : 'glass text-slate-400 hover:text-slate-200')}

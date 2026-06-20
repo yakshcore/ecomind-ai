@@ -140,7 +140,7 @@ export default function CoachPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1" role="log" aria-label="Chat messages" aria-live="polite" aria-relevant="additions">
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${
@@ -191,20 +191,26 @@ export default function CoachPage() {
         {/* Input */}
         <div className="shrink-0">
           <form onSubmit={e => { e.preventDefault(); sendMessage(input); }}
-            className="flex gap-3">
+            className="flex gap-3" role="search" aria-label="Ask EcoMind AI">
+            <label htmlFor="chat-input" className="sr-only">Ask EcoMind anything about your carbon footprint</label>
             <input
+              id="chat-input"
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Ask EcoMind anything about your carbon footprint..."
-              className="flex-1 px-4 py-3 rounded-xl text-sm text-white placeholder-slate-500"
+              className="flex-1 px-4 py-3 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
               disabled={loading}
+              aria-disabled={loading}
+              autoComplete="off"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="px-5 py-3 rounded-xl font-medium text-sm text-white disabled:opacity-40"
+              aria-label="Send message"
+              aria-busy={loading}
+              className="px-5 py-3 rounded-xl font-medium text-sm text-white disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               style={{ background: 'linear-gradient(135deg, #10b981, #3b82f6)' }}
             >
               Send →

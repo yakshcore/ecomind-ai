@@ -164,8 +164,8 @@ export default function DashboardPage() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Pie Chart */}
-          <div className="glass rounded-2xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Emissions by Category</h3>
+          <div className="glass rounded-2xl p-6" role="region" aria-label="Emissions by category chart">
+            <h3 className="text-lg font-semibold mb-4" id="pie-chart-heading">Emissions by Category</h3>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100}
@@ -180,18 +180,19 @@ export default function DashboardPage() {
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="flex flex-wrap gap-3 justify-center mt-2">
+            <dl className="flex flex-wrap gap-3 justify-center mt-2">
               {pieData.map(d => (
                 <div key={d.name} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 h-3 rounded-full inline-block" style={{ background: d.color }} />
-                  <span className="text-slate-300">{d.name}: {d.value}t</span>
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ background: d.color }} aria-hidden="true" />
+                  <dt className="sr-only">{d.name}</dt>
+                  <dd className="text-slate-300">{d.name}: {d.value}t</dd>
                 </div>
               ))}
-            </div>
+            </dl>
           </div>
 
           {/* Bar Chart */}
-          <div className="glass rounded-2xl p-6">
+          <div className="glass rounded-2xl p-6" role="region" aria-label="Monthly emissions trend chart">
             <h3 className="text-lg font-semibold mb-4">Monthly Trend</h3>
             {barData.length > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
@@ -215,7 +216,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Benchmark */}
-        <div className="glass rounded-2xl p-6 mb-8">
+        <div className="glass rounded-2xl p-6 mb-8" role="region" aria-label="Carbon footprint benchmarks">
           <h3 className="text-lg font-semibold mb-4">How You Compare</h3>
           <div className="space-y-3">
             {benchmarks.map(b => {
@@ -258,14 +259,14 @@ export default function DashboardPage() {
           )}
 
           {loadingAnalysis && (
-            <div className="flex items-center gap-3 py-8 justify-center">
-              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-400">Claude is analyzing your footprint...</span>
+            <div className="flex items-center gap-3 py-8 justify-center" role="status" aria-live="polite" aria-busy="true">
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+              <span className="text-slate-400">Analyzing your footprint...</span>
             </div>
           )}
 
           {analysis && !loadingAnalysis && (
-            <div className="prose-dark">
+            <div className="prose-dark" role="region" aria-label="AI analysis results" aria-live="polite">
               <ReactMarkdown>{analysis}</ReactMarkdown>
             </div>
           )}
