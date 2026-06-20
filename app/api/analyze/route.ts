@@ -1,39 +1,29 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
-import type { UserProfile, CarbonBreakdown } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 import { GLOBAL_AVERAGES, getEquivalences } from "@/lib/carbon-calculator";
+import { isValidBreakdown, isValidProfile } from "@/lib/validation";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 function getGroq() { return new Groq({ apiKey: process.env.GROQ_API_KEY }); }
-
-function isValidBreakdown(b: unknown): b is CarbonBreakdown {
-  if (!b || typeof b !== "object") return false;
-  const bd = b as Record<string, unknown>;
-  return (
-    typeof bd.total === "number" &&
-    typeof bd.transport === "number" &&
-    typeof bd.energy === "number" &&
-    typeof bd.food === "number" &&
-    typeof bd.shopping === "number" &&
-    bd.total > 0 &&
-    bd.total < 1000
-  );
-}
-
-function isValidProfile(p: unknown): p is UserProfile {
-  if (!p || typeof p !== "object") return false;
-  const pr = p as Record<string, unknown>;
-  return (
-    typeof pr.name === "string" &&
-    pr.name.length > 0 &&
-    pr.name.length <= 100 &&
-    typeof pr.location === "string"
-  );
-}
 
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: "AI service not configured" }, { status: 503 });
+    }
+
+    const { allowed, remaining } = checkRateLimit(getClientIp(req));
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait a minute." }, {
+        status: 429,
+        headers: { 'Retry-After': '60', 'X-RateLimit-Remaining': '0' },
+      });
+    }
+
+    const contentType = req.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      return NextResponse.json({ error: "Content-Type must be application/json" }, { status: 415 });
     }
 
     const body = await req.json().catch(() => null);
@@ -63,8 +53,8 @@ Always format your response in clean markdown with clear sections.`;
     const userPrompt = `Analyze this person's carbon footprint and provide a deeply personalized report.
 
 **User Profile:**
-- Name: ${profile.name.slice(0, 50)}
-- Location: ${String(profile.location).slice(0, 100)}
+- Name: ${(profile as UserProfile).name.slice(0, 50)}
+- Location: ${String((profile as UserProfile).location).slice(0, 100)}
 
 **Annual Carbon Footprint Breakdown:**
 - Total: ${breakdown.total} tonnes CO2e
@@ -80,13 +70,13 @@ Always format your response in clean markdown with clear sections.`;
 - Equivalent to driving ${eq.milesDriven.toLocaleString()} miles in a gas car
 
 **Lifestyle Details:**
-- Transport: ${profile.transport.carType} car, ${profile.transport.carMilesPerWeek} miles/week, flights: ${profile.transport.flightType}
-- Diet: ${profile.food.diet} (${profile.food.beefServingsPerWeek} beef servings/week)
-- Energy: ${profile.energy.electricityKwhPerMonth} kWh/month electricity, renewable: ${profile.energy.renewableEnergy}
-- Shopping: ${profile.shopping.shoppingFrequency} frequency, recycling: ${profile.shopping.recyclingHabits}
+- Transport: ${(profile as UserProfile).transport.carType} car, ${(profile as UserProfile).transport.carMilesPerWeek} miles/week, flights: ${(profile as UserProfile).transport.flightType}
+- Diet: ${(profile as UserProfile).food.diet} (${(profile as UserProfile).food.beefServingsPerWeek} beef servings/week)
+- Energy: ${(profile as UserProfile).energy.electricityKwhPerMonth} kWh/month electricity, renewable: ${(profile as UserProfile).energy.renewableEnergy}
+- Shopping: ${(profile as UserProfile).shopping.shoppingFrequency} frequency, recycling: ${(profile as UserProfile).shopping.recyclingHabits}
 
 Provide a comprehensive analysis with:
-1. **Your Carbon Story** — a 2-3 sentence personalized narrative about ${profile.name.slice(0, 50)}'s unique footprint pattern
+1. **Your Carbon Story** — a 2-3 sentence personalized narrative about ${(profile as UserProfile).name.slice(0, 50)}'s unique footprint pattern
 2. **Key Wins** — 2-3 things they're already doing right (be specific to their data)
 3. **Biggest Opportunities** — their top 3 reduction opportunities with estimated annual savings in tonnes
 4. **Quick Wins This Week** — 3 actions they can start immediately (low-effort, moderate impact)
@@ -107,7 +97,10 @@ Keep the tone warm, specific, and energizing. Use the person's name naturally. R
 
     const text = response.choices[0]?.message?.content ?? "";
     return NextResponse.json({ analysis: text }, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: {
+        'Cache-Control': 'no-store',
+        'X-RateLimit-Remaining': String(remaining),
+      },
     });
   } catch (err) {
     console.error("Analysis error:", err);

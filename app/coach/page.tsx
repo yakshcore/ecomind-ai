@@ -172,11 +172,11 @@ export default function CoachPage() {
           ))}
 
           {loading && (
-            <div className="flex gap-3">
+            <div className="flex gap-3" role="status" aria-label="EcoMind is thinking">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                style={{ background: 'linear-gradient(135deg, #10b981, #3b82f6)' }}>🌿</div>
+                style={{ background: 'linear-gradient(135deg, #10b981, #3b82f6)' }} aria-hidden="true">🌿</div>
               <div className="glass rounded-2xl rounded-tl-sm px-4 py-3">
-                <div className="flex gap-1.5 items-center h-5">
+                <div className="flex gap-1.5 items-center h-5" aria-hidden="true">
                   {[0, 1, 2].map(i => (
                     <span key={i} className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce inline-block"
                       style={{ animationDelay: `${i * 0.15}s` }} />
@@ -191,7 +191,7 @@ export default function CoachPage() {
         {/* Input */}
         <div className="shrink-0">
           <form onSubmit={e => { e.preventDefault(); sendMessage(input); }}
-            className="flex gap-3" role="search" aria-label="Ask EcoMind AI">
+            className="flex gap-3" aria-label="Send a message to EcoMind AI">
             <label htmlFor="chat-input" className="sr-only">Ask EcoMind anything about your carbon footprint</label>
             <input
               id="chat-input"
@@ -217,7 +217,7 @@ export default function CoachPage() {
             </button>
           </form>
           <p className="text-xs text-slate-600 text-center mt-2">
-            Powered by Claude AI (Anthropic) &mdash; responses may not be 100% accurate
+            Powered by Groq AI (llama-3.3-70b-versatile) &mdash; responses may not be 100% accurate
           </p>
         </div>
       </div>

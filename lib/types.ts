@@ -1,7 +1,6 @@
 export interface TransportData {
   carType: 'none' | 'gasoline' | 'hybrid' | 'electric' | 'diesel';
   carMilesPerWeek: number;
-  flightsPerYear: number;
   flightType: 'none' | 'short' | 'mixed' | 'long';
   publicTransitMilesPerWeek: number;
 }

@@ -19,7 +19,7 @@ const features = [
   {
     icon: '🤖',
     title: 'AI Personal Coach',
-    desc: 'Claude AI analyzes your unique footprint and generates a personalized reduction roadmap.',
+    desc: 'Groq AI analyzes your unique footprint and generates a personalized reduction roadmap.',
   },
   {
     icon: '📊',
@@ -54,7 +54,7 @@ export default function HomePage() {
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-emerald-400 mb-8"
           style={{ border: '1px solid rgba(16,185,129,0.3)' }}>
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-          Powered by Claude AI &mdash; Real Emission Factors
+          Powered by Groq AI &mdash; Real Emission Factors
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">

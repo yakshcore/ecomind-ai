@@ -15,7 +15,7 @@ import ReactMarkdown from 'react-markdown';
 const DEMO: AppState = {
   profile: {
     name: 'Demo User', location: 'United States',
-    transport: { carType: 'gasoline', carMilesPerWeek: 150, flightsPerYear: 3, flightType: 'mixed', publicTransitMilesPerWeek: 10 },
+    transport: { carType: 'gasoline', carMilesPerWeek: 150, flightType: 'mixed', publicTransitMilesPerWeek: 10 },
     energy: { electricityKwhPerMonth: 900, naturalGasThermPerMonth: 60, heatingType: 'gas', householdSize: 2, homeSize: 'medium', renewableEnergy: false },
     food: { diet: 'average_meat', beefServingsPerWeek: 4, dairyServingsPerDay: 2, foodWaste: 'average', localFood: 'sometimes' },
     shopping: { clothingItemsPerMonth: 3, newElectronicsPerYear: 2, shoppingFrequency: 'average', recyclingHabits: 'moderate' },
@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [analysis, setAnalysis] = useState('');
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
+  const [goalTarget, setGoalTarget] = useState(50);
 
   useEffect(() => {
     const loaded = loadState();
@@ -49,6 +50,7 @@ export default function DashboardPage() {
       setState(loaded);
       setIsDemo(false);
       if (loaded.lastAnalysis) setAnalysis(loaded.lastAnalysis);
+      if (loaded.goals?.targetReductionPercent) setGoalTarget(loaded.goals.targetReductionPercent);
     }
   }, []);
 
@@ -57,6 +59,14 @@ export default function DashboardPage() {
 
   const rating = getCarbonRating(breakdown.total);
   const eq = getEquivalences(breakdown.total);
+
+  const goalTargetTonnes = breakdown.total * (1 - goalTarget / 100);
+  const goalYearsLeft = Math.max(1, 2030 - new Date().getFullYear());
+  const goalReductionNeeded = breakdown.total - goalTargetTonnes;
+  const goalPacePerYear = goalReductionNeeded / goalYearsLeft;
+  const goalBarWidth = Math.min(100, Math.max(5,
+    ((GLOBAL_AVERAGES.usa - breakdown.total) / (GLOBAL_AVERAGES.usa - goalTargetTonnes)) * 100
+  ));
 
   const pieData = CATS.map(c => ({
     name: c.charAt(0).toUpperCase() + c.slice(1),
@@ -240,6 +250,53 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* Goal Progress */}
+        {!isDemo && (
+          <div className="glass rounded-2xl p-6 mb-8" role="region" aria-label="Goal progress tracker">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <h3 className="text-lg font-semibold">
+                <span aria-hidden="true">🎯</span> Your Reduction Goal
+              </h3>
+              <div className="flex items-center gap-2 text-sm">
+                <label htmlFor="goal-slider" className="text-slate-400 text-xs">Target reduction:</label>
+                <input
+                  id="goal-slider"
+                  type="range" min={10} max={90} step={5}
+                  value={goalTarget}
+                  onChange={e => setGoalTarget(Number(e.target.value))}
+                  className="w-24"
+                  aria-valuetext={`${goalTarget}% reduction target`}
+                />
+                <span className="text-emerald-400 font-bold w-10 text-sm">{goalTarget}%</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-400">{goalTargetTonnes.toFixed(1)}t</div>
+                <div className="text-xs text-slate-400 mt-1">Target by 2030</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-400">{goalReductionNeeded.toFixed(1)}t</div>
+                <div className="text-xs text-slate-400 mt-1">Total to eliminate</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-400">{goalPacePerYear.toFixed(1)}t</div>
+                <div className="text-xs text-slate-400 mt-1">Per year needed</div>
+              </div>
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>Now: {breakdown.total}t</span>
+              <span>Goal: {goalTargetTonnes.toFixed(1)}t by 2030</span>
+            </div>
+            <div className="h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}
+              role="progressbar" aria-valuenow={goalBarWidth} aria-valuemin={0} aria-valuemax={100}
+              aria-label={`${goalBarWidth.toFixed(0)}% progress toward ${goalTarget}% reduction goal`}>
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${goalBarWidth}%`, background: 'linear-gradient(90deg, #10b981, #3b82f6)' }} />
+            </div>
+          </div>
+        )}
+
         {/* AI Analysis */}
         <div className="glass rounded-2xl p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -255,7 +312,7 @@ export default function DashboardPage() {
           </div>
 
           {analysisError && (
-            <p className="text-red-400 text-sm mb-3">{analysisError}</p>
+            <p className="text-red-400 text-sm mb-3" role="alert">{analysisError}</p>
           )}
 
           {loadingAnalysis && (
@@ -273,7 +330,7 @@ export default function DashboardPage() {
 
           {!analysis && !loadingAnalysis && (
             <p className="text-slate-500 text-sm">
-              Click &ldquo;Generate Analysis&rdquo; to get Claude AI&apos;s personalized insights on your footprint.
+              Click &ldquo;Generate Analysis&rdquo; to get personalized AI insights on your footprint.
             </p>
           )}
         </div>

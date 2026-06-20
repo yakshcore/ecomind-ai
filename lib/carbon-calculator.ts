@@ -57,6 +57,11 @@ const AVERAGE_ANNUAL_FLIGHT_MILES: Record<string, number> = {
   long: 20000,
 };
 
+/**
+ * Calculates annual transport emissions from car, flight, and public transit usage.
+ * @param data - Transport inputs (car type, weekly miles, flight category, transit miles)
+ * @returns Annual transport emissions in tonnes CO2e, rounded to 2 decimals
+ */
 export function calculateTransportEmissions(data: TransportData): number {
   const carFactor = EMISSION_FACTORS.transport.car[data.carType] ?? 0;
   const carAnnualMiles = data.carMilesPerWeek * 52;
@@ -71,6 +76,12 @@ export function calculateTransportEmissions(data: TransportData): number {
   return Math.round((carEmissions + flightEmissions + transitEmissions) / 1000 * 100) / 100; // return in tonnes
 }
 
+/**
+ * Calculates annual per-person home energy emissions from electricity and natural gas.
+ * Applies a renewable-energy discount, a home-size multiplier, then divides by household size.
+ * @param data - Energy inputs (monthly kWh/therms, home size, household size, renewable flag)
+ * @returns Annual per-person energy emissions in tonnes CO2e, rounded to 2 decimals
+ */
 export function calculateEnergyEmissions(data: EnergyData): number {
   let electricityEmissions = data.electricityKwhPerMonth * 12 * EMISSION_FACTORS.energy.electricity;
   if (data.renewableEnergy) {
@@ -79,10 +90,17 @@ export function calculateEnergyEmissions(data: EnergyData): number {
 
   const gasEmissions = data.naturalGasThermPerMonth * 12 * EMISSION_FACTORS.energy.naturalGas;
 
-  const perPerson = (electricityEmissions + gasEmissions) / data.householdSize;
+  const homeSizeMultiplier = { small: 0.75, medium: 1.0, large: 1.4 }[data.homeSize] ?? 1.0;
+  const perPerson = (electricityEmissions + gasEmissions) * homeSizeMultiplier / data.householdSize;
   return Math.round(perPerson / 1000 * 100) / 100; // tonnes per person
 }
 
+/**
+ * Calculates annual food & diet emissions from a diet baseline, adjusted for food waste,
+ * local sourcing, and (for meat-eaters) beef and dairy consumption.
+ * @param data - Food inputs (diet type, beef/dairy servings, waste level, local sourcing)
+ * @returns Annual food emissions in tonnes CO2e, rounded to 2 decimals
+ */
 export function calculateFoodEmissions(data: FoodData): number {
   const baseDietKg = EMISSION_FACTORS.food[data.diet] ?? EMISSION_FACTORS.food.average_meat;
 
@@ -95,10 +113,22 @@ export function calculateFoodEmissions(data: FoodData): number {
     rarely: 1.0,
   }[data.localFood] ?? 1.0;
 
-  const adjusted = baseDietKg * wasteFactor * localFoodDiscount;
+  const meatDiets = new Set(['low_meat', 'average_meat', 'high_meat']);
+  const beefBonus = meatDiets.has(data.diet)
+    ? data.beefServingsPerWeek * EMISSION_FACTORS.diet.beefPerServing
+    : 0;
+  const dairyBonus = data.dairyServingsPerDay * EMISSION_FACTORS.diet.dairyPerServing * 365;
+
+  const adjusted = baseDietKg * wasteFactor * localFoodDiscount + beefBonus + dairyBonus;
   return Math.round(adjusted / 1000 * 100) / 100; // tonnes
 }
 
+/**
+ * Calculates annual consumption emissions from general shopping, clothing, and electronics,
+ * discounted by recycling habits.
+ * @param data - Shopping inputs (frequency, clothing/electronics counts, recycling level)
+ * @returns Annual shopping emissions in tonnes CO2e, rounded to 2 decimals
+ */
 export function calculateShoppingEmissions(data: ShoppingData): number {
   const baseKg = EMISSION_FACTORS.shopping[data.shoppingFrequency] ?? EMISSION_FACTORS.shopping.average;
   const clothingKg = data.clothingItemsPerMonth * 12 * EMISSION_FACTORS.shopping.clothingPerItem;
@@ -114,6 +144,10 @@ export function calculateShoppingEmissions(data: ShoppingData): number {
   return Math.round(total / 1000 * 100) / 100; // tonnes
 }
 
+/**
+ * Aggregates all four emission categories into a complete annual carbon breakdown.
+ * @returns A {@link CarbonBreakdown} with per-category tonnes and a summed total
+ */
 export function calculateFullBreakdown(
   transport: TransportData,
   energy: EnergyData,
@@ -133,6 +167,7 @@ export function calculateFullBreakdown(
   };
 }
 
+/** Per-capita annual CO2e averages (tonnes) for benchmarking. Source: Our World in Data / IEA. */
 export const GLOBAL_AVERAGES = {
   world: 4.7,
   usa: 16.0,
@@ -140,6 +175,11 @@ export const GLOBAL_AVERAGES = {
   india: 1.9,
 };
 
+/**
+ * Translates a carbon total into relatable real-world equivalences.
+ * @param totalTonnes - Annual footprint in tonnes CO2e
+ * @returns Equivalence figures (trees to offset, gas-car miles, flights, smartphone charges, etc.)
+ */
 export function getEquivalences(totalTonnes: number) {
   const kg = totalTonnes * 1000;
   return {
@@ -151,6 +191,11 @@ export function getEquivalences(totalTonnes: number) {
   };
 }
 
+/**
+ * Maps a carbon total to a qualitative rating band (Excellent → Very High)
+ * with an associated color, 0–100 score, and encouraging message.
+ * @param totalTonnes - Annual footprint in tonnes CO2e
+ */
 export function getCarbonRating(totalTonnes: number): {
   label: string;
   color: string;

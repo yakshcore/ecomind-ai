@@ -17,10 +17,10 @@ The solution targets individuals who want to take meaningful climate action but 
 ## Approach and Logic
 
 ### Assessment-First Architecture
-The user completes a 5-step guided assessment covering all major emission sources:
+The user completes a guided 6-screen assessment (Profile → 4 emission categories → Results):
 1. **Transportation** — car type (EV/hybrid/gas/diesel/none), weekly mileage, flight frequency, public transit usage
-2. **Home Energy** — monthly electricity (kWh), natural gas (therms), household size, renewable energy
-3. **Food & Diet** — diet type (vegan → high-meat), beef servings, food waste, local food sourcing
+2. **Home Energy** — monthly electricity (kWh), natural gas (therms), household size, home size, renewable energy
+3. **Food & Diet** — diet type (vegan → high-meat), beef servings, dairy, food waste, local food sourcing
 4. **Shopping** — purchasing frequency, clothing items, electronics, recycling habits
 
 ### Emission Calculation
@@ -78,7 +78,7 @@ AI Coach chat → POST /api/chat → Groq AI → context-aware response
 | Charts | Recharts |
 | Markdown | react-markdown |
 | Storage | localStorage (client-side persistence) |
-| Testing | Jest + ts-jest (27 unit tests) |
+| Testing | Jest + ts-jest (115 unit tests, 5 suites, ~97% coverage) |
 | Deployment | Google Cloud Run (Docker / standalone) |
 
 ---
@@ -119,13 +119,21 @@ app/
     analyze/route.ts    # AI personalized analysis endpoint
     chat/route.ts       # AI coaching chat endpoint
     actions/route.ts    # AI action generation endpoint
+  error.tsx             # Global error boundary (App Router)
+  not-found.tsx         # Custom 404 page
 lib/
   carbon-calculator.ts  # EPA emission factors + calculation logic
   types.ts              # TypeScript interfaces
   store.ts              # localStorage persistence layer
-  utils.ts              # Utility functions
+  utils.ts              # Formatting + class-name helpers
+  validation.ts         # Shared API input validation guards
+  rate-limit.ts         # In-memory per-IP rate limiter
 __tests__/
-  carbon-calculator.test.ts  # 27 unit tests
+  carbon-calculator.test.ts  # Calculation engine (44 tests)
+  utils.test.ts              # Formatting + cn helpers (29 tests)
+  validation.test.ts         # Input validation guards (18 tests)
+  store.test.ts              # localStorage layer (16 tests)
+  rate-limit.test.ts         # Per-IP rate limiter (8 tests)
 components/
   Navbar.tsx            # Navigation with active route highlighting
 ```
@@ -134,11 +142,14 @@ components/
 
 ## Security
 
-- All API route inputs are validated and sanitized before processing
-- User-supplied strings are length-capped before being included in AI prompts
-- AI-generated JSON (actions endpoint) is validated against expected schema before use
-- API key is server-side only — never exposed to the client
-- `.env.local` is excluded from version control via `.gitignore`
+- **Input validation** — all API route inputs pass shared type guards (`lib/validation.ts`) before processing
+- **Rate limiting** — per-IP limiter (20 req/min) on every AI endpoint returns `429` with `Retry-After` (`lib/rate-limit.ts`)
+- **Content-Type enforcement** — non-JSON requests are rejected with `415`
+- **Prompt-injection mitigation** — user strings are length-capped before inclusion in AI prompts
+- **Schema validation** — AI-generated JSON (actions endpoint) is validated against the expected shape before use
+- **Security headers** — `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy` set globally via `next.config.ts`
+- **Secret hygiene** — API key is server-side only, never exposed to the client; `.env.local` is git-ignored
+- **Zero known vulnerabilities** — `npm audit` reports 0 (transitive CVEs pinned via `overrides`)
 
 ---
 
@@ -149,12 +160,16 @@ npm test           # run all tests
 npm run test:coverage  # with coverage report
 ```
 
-27 unit tests covering:
-- Transport, energy, food, and shopping emission calculations
+**115 unit tests across 5 suites (~97% statement coverage, enforced via `coverageThreshold`)** covering:
+- Transport, energy, food, and shopping emission calculations (incl. diesel/hybrid/EV ordering, home-size and beef-serving effects)
 - Full breakdown totals and category consistency
-- Carbon rating thresholds
-- CO₂ equivalence calculations
-- Edge cases: zero usage, renewable energy, vegan diet
+- Carbon rating thresholds and boundary values
+- CO₂ equivalence calculations and linear scaling
+- Formatting/utility helpers (tonnes, kg, category colors, month labels)
+- Input validation guards (valid/invalid profiles and breakdowns, boundary lengths)
+- localStorage persistence layer (save/load/toggle/clear, history rollover, chat truncation, corrupt-data recovery)
+- Per-IP rate limiter (quota decrement, blocking, window reset, IP isolation)
+- Edge cases: zero usage, renewable energy, vegan diet, empty state
 
 ---
 

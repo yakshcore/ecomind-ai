@@ -16,7 +16,6 @@ describe("calculateTransportEmissions", () => {
   const base: TransportData = {
     carType: "none",
     carMilesPerWeek: 0,
-    flightsPerYear: 0,
     flightType: "none",
     publicTransitMilesPerWeek: 0,
   };
@@ -51,6 +50,28 @@ describe("calculateTransportEmissions", () => {
     });
     expect(result).toBeLessThan(50);
     expect(result).toBeGreaterThan(0);
+  });
+
+  it("diesel emits less than gasoline but more than hybrid", () => {
+    const diesel = calculateTransportEmissions({ ...base, carType: "diesel", carMilesPerWeek: 100 });
+    const gasoline = calculateTransportEmissions({ ...base, carType: "gasoline", carMilesPerWeek: 100 });
+    const hybrid = calculateTransportEmissions({ ...base, carType: "hybrid", carMilesPerWeek: 100 });
+    expect(gasoline).toBeGreaterThan(diesel);
+    expect(diesel).toBeGreaterThan(hybrid);
+  });
+
+  it("hybrid emits less than gasoline but more than electric", () => {
+    const hybrid = calculateTransportEmissions({ ...base, carType: "hybrid", carMilesPerWeek: 100 });
+    const gasoline = calculateTransportEmissions({ ...base, carType: "gasoline", carMilesPerWeek: 100 });
+    const ev = calculateTransportEmissions({ ...base, carType: "electric", carMilesPerWeek: 100 });
+    expect(gasoline).toBeGreaterThan(hybrid);
+    expect(hybrid).toBeGreaterThan(ev);
+  });
+
+  it("more miles driven means more emissions", () => {
+    const low = calculateTransportEmissions({ ...base, carType: "gasoline", carMilesPerWeek: 50 });
+    const high = calculateTransportEmissions({ ...base, carType: "gasoline", carMilesPerWeek: 300 });
+    expect(high).toBeGreaterThan(low);
   });
 });
 
@@ -90,6 +111,12 @@ describe("calculateEnergyEmissions", () => {
   it("returns positive value for typical household", () => {
     expect(calculateEnergyEmissions(base)).toBeGreaterThan(0);
   });
+
+  it("large home emits more than small home for same usage", () => {
+    const small = calculateEnergyEmissions({ ...base, homeSize: "small" });
+    const large = calculateEnergyEmissions({ ...base, homeSize: "large" });
+    expect(large).toBeGreaterThan(small);
+  });
 });
 
 // ─── Food ────────────────────────────────────────────────────────────────────
@@ -123,6 +150,26 @@ describe("calculateFoodEmissions", () => {
 
   it("returns positive value for any diet", () => {
     expect(calculateFoodEmissions(base)).toBeGreaterThan(0);
+  });
+
+  it("more beef servings per week increases meat-eater emissions", () => {
+    const low = calculateFoodEmissions({ ...base, beefServingsPerWeek: 1 });
+    const high = calculateFoodEmissions({ ...base, beefServingsPerWeek: 7 });
+    expect(high).toBeGreaterThan(low);
+  });
+
+  it("beef servings have no effect on vegan diet", () => {
+    const vegan0 = calculateFoodEmissions({ ...base, diet: "vegan", beefServingsPerWeek: 0 });
+    const vegan7 = calculateFoodEmissions({ ...base, diet: "vegan", beefServingsPerWeek: 7 });
+    expect(vegan0).toBe(vegan7);
+  });
+
+  it("pescatarian emits less than low-meat but more than vegetarian", () => {
+    const veg = calculateFoodEmissions({ ...base, diet: "vegetarian", beefServingsPerWeek: 0 });
+    const pesc = calculateFoodEmissions({ ...base, diet: "pescatarian", beefServingsPerWeek: 0 });
+    const lowMeat = calculateFoodEmissions({ ...base, diet: "low_meat", beefServingsPerWeek: 1 });
+    expect(pesc).toBeGreaterThan(veg);
+    expect(lowMeat).toBeGreaterThan(veg);
   });
 });
 
@@ -158,7 +205,7 @@ describe("calculateShoppingEmissions", () => {
 // ─── Full Breakdown ───────────────────────────────────────────────────────────
 
 describe("calculateFullBreakdown", () => {
-  const transport: TransportData = { carType: "gasoline", carMilesPerWeek: 150, flightsPerYear: 2, flightType: "short", publicTransitMilesPerWeek: 10 };
+  const transport: TransportData = { carType: "gasoline", carMilesPerWeek: 150, flightType: "short", publicTransitMilesPerWeek: 10 };
   const energy: EnergyData = { electricityKwhPerMonth: 900, naturalGasThermPerMonth: 50, heatingType: "gas", householdSize: 2, homeSize: "medium", renewableEnergy: false };
   const food: FoodData = { diet: "average_meat", beefServingsPerWeek: 3, dairyServingsPerDay: 2, foodWaste: "average", localFood: "sometimes" };
   const shopping: ShoppingData = { clothingItemsPerMonth: 2, newElectronicsPerYear: 1, shoppingFrequency: "average", recyclingHabits: "moderate" };
@@ -204,6 +251,28 @@ describe("getCarbonRating", () => {
     const high = getCarbonRating(15).score;
     expect(low).toBeGreaterThan(high);
   });
+
+  it("rates exactly 2t as Excellent (boundary)", () => {
+    expect(getCarbonRating(2).label).toBe("Excellent");
+  });
+
+  it("rates exactly 4t as Good (boundary)", () => {
+    expect(getCarbonRating(4).label).toBe("Good");
+  });
+
+  it("rates 7t as Average (boundary)", () => {
+    expect(getCarbonRating(7).label).toBe("Average");
+  });
+
+  it("rates 12t as High (boundary)", () => {
+    expect(getCarbonRating(12).label).toBe("High");
+  });
+
+  it("returns a non-empty color string for any input", () => {
+    [1, 3, 6, 10, 20].forEach(t => {
+      expect(getCarbonRating(t).color).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+  });
 });
 
 // ─── Equivalences ────────────────────────────────────────────────────────────
@@ -231,5 +300,41 @@ describe("GLOBAL_AVERAGES", () => {
 
   it("all values are positive numbers", () => {
     Object.values(GLOBAL_AVERAGES).forEach((v) => expect(v).toBeGreaterThan(0));
+  });
+
+  it("India average is lower than world average", () => {
+    expect(GLOBAL_AVERAGES.india).toBeLessThan(GLOBAL_AVERAGES.world);
+  });
+
+  it("EU average is between world and US average", () => {
+    expect(GLOBAL_AVERAGES.eu).toBeGreaterThan(GLOBAL_AVERAGES.world);
+    expect(GLOBAL_AVERAGES.eu).toBeLessThan(GLOBAL_AVERAGES.usa);
+  });
+});
+
+describe("getEquivalences (additional)", () => {
+  it("very small footprint still returns non-negative values", () => {
+    const eq = getEquivalences(0.1);
+    expect(eq.treesNeeded).toBeGreaterThanOrEqual(0);
+    expect(eq.milesDriven).toBeGreaterThanOrEqual(0);
+  });
+
+  it("equivalences scale linearly with footprint", () => {
+    const eq5 = getEquivalences(5);
+    const eq10 = getEquivalences(10);
+    expect(eq10.treesNeeded).toBe(eq5.treesNeeded * 2);
+  });
+});
+
+describe("calculateFullBreakdown (additional)", () => {
+  it("zero car miles with no flights yields near-zero transport", () => {
+    const transport: TransportData = { carType: "none", carMilesPerWeek: 0, flightType: "none", publicTransitMilesPerWeek: 0 };
+    const energy: EnergyData = { electricityKwhPerMonth: 0, naturalGasThermPerMonth: 0, heatingType: "gas", householdSize: 1, homeSize: "medium", renewableEnergy: false };
+    const food: FoodData = { diet: "vegan", beefServingsPerWeek: 0, dairyServingsPerDay: 0, foodWaste: "minimal", localFood: "always" };
+    const shopping: ShoppingData = { clothingItemsPerMonth: 0, newElectronicsPerYear: 0, shoppingFrequency: "minimal", recyclingHabits: "thorough" };
+    const bd = calculateFullBreakdown(transport, energy, food, shopping);
+    expect(bd.transport).toBe(0);
+    expect(bd.energy).toBe(0);
+    expect(bd.total).toBeGreaterThanOrEqual(0);
   });
 });

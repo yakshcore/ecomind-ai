@@ -8,7 +8,7 @@ import { saveProfile, saveBreakdown } from '@/lib/store';
 const STEPS = ['Profile', 'Transport', 'Energy', 'Food', 'Shopping', 'Results'];
 
 const defaultTransport: TransportData = {
-  carType: 'gasoline', carMilesPerWeek: 100, flightsPerYear: 2,
+  carType: 'gasoline', carMilesPerWeek: 100,
   flightType: 'short', publicTransitMilesPerWeek: 20,
 };
 const defaultEnergy: EnergyData = {

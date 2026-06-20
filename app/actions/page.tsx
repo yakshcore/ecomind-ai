@@ -109,7 +109,7 @@ export default function ActionsPage() {
           )}
         </div>
 
-        {loadError && <p className="text-red-400 text-sm mb-4">{loadError}</p>}
+        {loadError && <p className="text-red-400 text-sm mb-4" role="alert">{loadError}</p>}
 
         {/* Impact Summary */}
         {actions.length > 0 && (
@@ -152,9 +152,9 @@ export default function ActionsPage() {
 
         {/* Action Cards */}
         {loading ? (
-          <div className="flex items-center justify-center py-16 gap-3">
-            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-slate-400">Claude is generating personalized actions...</span>
+          <div className="flex items-center justify-center py-16 gap-3" role="status" aria-live="polite" aria-busy="true">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+            <span className="text-slate-400">Generating personalized actions...</span>
           </div>
         ) : (
           <div className="space-y-4">

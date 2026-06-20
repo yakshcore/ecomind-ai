@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { ChatMessage, UserProfile, CarbonBreakdown } from "@/lib/types";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 function getGroq() { return new Groq({ apiKey: process.env.GROQ_API_KEY }); }
 
@@ -27,6 +28,19 @@ export async function POST(req: NextRequest) {
   try {
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: "AI service not configured" }, { status: 503 });
+    }
+
+    const { allowed, remaining } = checkRateLimit(getClientIp(req));
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait a minute." }, {
+        status: 429,
+        headers: { 'Retry-After': '60', 'X-RateLimit-Remaining': '0' },
+      });
+    }
+
+    const contentType = req.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      return NextResponse.json({ error: "Content-Type must be application/json" }, { status: 415 });
     }
 
     const body = await req.json().catch(() => null);
@@ -63,7 +77,9 @@ Never be preachy. Be encouraging and solution-focused.`;
     });
 
     const text = response.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ reply: text });
+    return NextResponse.json({ reply: text }, {
+      headers: { 'X-RateLimit-Remaining': String(remaining) },
+    });
   } catch (err) {
     console.error("Chat error:", err);
     return NextResponse.json({ error: "Failed to get response" }, { status: 500 });
